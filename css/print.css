@@ -1,0 +1,41 @@
+* {
+    /* It's a best practice to do this. */
+    margin: 0;
+    padding: 0;
+}
+
+/*
+A4 is 210 by 297 mm.
+We should set the page height to 297
+    - minus the height of the header
+    - minus the height of the footer
+    - minus the printer margins (2 * 13)
+
+    NOTE: the current height does not reflect these calculations
+*/
+div.page {
+
+  width: 210mm;
+  height: 250mm;
+  overflow: hidden;
+  page-break-after: always;
+
+  background-color: red;
+}
+
+.header {
+    padding-top: 13mm; /* printer margin */
+    height: 20mm;
+    background-color: yellow;
+}
+.footer {
+    padding-bottom: 13mm; /* printer margin */
+    height: 20mm;
+    background-color: green;
+}
+
+.footer-count {
+    display: inline-block;
+    position: absolute;
+    right: 5mm;
+}
