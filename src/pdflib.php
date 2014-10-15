@@ -1,12 +1,17 @@
 <?php
+
+namespace BitsOfLove;
+
 class PdfLib {
 
     public $params;
+    private $maxTmpFileAge;
 
     public function __construct($params=null)
     {
         //currently not using any params, but hey, you never know right?
         $this->params=$params;
+        $this->maxTmpFileAge = 2*24*60*60; //two days
     }
 
 
@@ -111,8 +116,7 @@ class PdfLib {
     private function clearTmpFolder() {
         //Clear the tmp folder
         $tmpFilePath = dirname(__FILE__)  . '/tmp/';
-        $twoDays = 2*24*60*60;
-        $this->removeOldFiles($tmpFilePath, $twoDays);
+        $this->removeOldFiles($tmpFilePath, $this->maxTmpFileAge);
     }
 
     private function removeOldFiles($directory, $maxAge)

@@ -1,6 +1,8 @@
 <?php
 
-require_once('pdflib.php');
+use BitsOfLove\PdfLib;
+
+require_once('../src/pdflib.php');
 
 //using a framework, you would probably create dynamic templates
 //this here is just a static example. in any case, we need the raw html + js to send to wkhtmltopdf

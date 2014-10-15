@@ -1,0 +1,26 @@
+{
+    "name": "bol/wkhtmltopdf-wrapper",
+    "type": "library",
+    "description": "Wrapper around the wkhtmltopdf binary",
+    "keywords": ["pdf","generate", "generation"],
+    "homepage": "https://github.com/bitsoflove/wkhtmltopdf-wrapper",
+    "license": "MIT",
+    "version": "0.0.1",
+    "authors": [
+        {
+            "name": "Pepijn Olivier",
+            "email": "olivier.pepijn@gmail.com",
+            "homepage": "https://github.com/user11001",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.3.0"
+    },
+    "autoload": {
+        "psr-0": {
+            "BitsOfLove": "src/"
+        }
+    }
+}
