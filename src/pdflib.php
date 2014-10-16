@@ -15,113 +15,199 @@ class PdfLib {
     }
 
 
+    /**
+     * Validates input, executes custom wkhtmltopdf statement and returns result or error
+     */
     public function generate(array $options) {
 
+        //cleanup old files and validate options
         $this->clearTmpFolder();
         $this->validateOptions($options);
 
-        $parms = $this->createLocationParameters($options);
-        $statement = $this->buildStatement($parms);
+        //set some default variables when they are not provided
+        $options['name'] = empty($options['name']) ? 'pdf' : $options['name'];
 
-        //actually execute the statement
-        $output = shell_exec($statement);
+        //initialize: create tmp files and build the bash statement
+        $locations = $this->createTemporaryHtmlFiles($options);
+        $statement = $this->buildStatement($locations);
 
-        if(!empty($options['immediateDownload'])) {
-            $this->pushPdfDownload($statement, $parms);
+        //execute the statement
+        $output = $this->executeStatement($statement);
+
+        //parse output and return result, or handle error
+        if($this->isValidOutput($output)) {
+            $this->returnResult($statement, $options, $locations);
         } else {
-            return $parms['relativePdfLocation'];
+            $this->handleError($output);
         }
     }
 
-    private function pushPdfDownload($statement, $parms) {
+    /**
+     * Determine wether the executed statement has been executed successfully
+     * Basically any non-zero return value is an error.
+     * Common error codes: http://www.linuxtopia.org/online_books/advanced_bash_scripting_guide/exitcodes.html
+     *
+     * Via http://stackoverflow.com/a/2230620/237739
+     */
+    private function isValidOutput($output) {
+        if(is_array($output) && isset($output['exitCode']) && is_int($output['exitCode'])) {
+            return ($output['exitCode'] === 0);
+        }
 
-        $pdfLocation = $parms['pdfLocation'];
+        return false;
+    }
+
+
+    /**
+     * Based on the $options, return a link to the PDF or just push the pdf
+     */
+    private function returnResult($statement, $options, $locations) {
+        if(!empty($options['immediateDownload'])) {
+            $this->pushPdfDownload($statement, $options, $locations);
+        } else {
+            return $locations['relativepdf'];
+        }
+    }
+
+    private function handleError($output) {
+        echo json_encode($output);die;
+    }
+
+    /**
+     * Execute the bash statement and return its output + exit code
+     * (This only works on unix filesystems)
+     *
+     * http://stackoverflow.com/a/5602987/237739
+     */
+    private function executeStatement($statement) {
+        $output = array();
+        $exitCode = 0;
+        exec($statement . ' 2>&1', $output, $exitCode);
+
+        return array('output' => $output,
+                     'exitCode' => $exitCode);
+    }
+
+    private function pushPdfDownload($statement, $options, $locations) {
+
+        $pdf = $locations['pdf'];
+        $name = $options['name'];
 
         //grab the contents of the statement and send it to the user
-        $str = file_get_contents($pdfLocation);
+        $str = file_get_contents($pdf);
         header('Content-Type: application/pdf');
         header('Content-Length: '.strlen($str));
-        header('Content-Disposition: inline; filename="pdf.pdf"');
+        header("Content-Disposition: inline; filename='$name.pdf'");
         header('Cache-Control: private, max-age=0, must-revalidate');
         header('Pragma: public');
         ini_set('zlib.output_compression','0');
         die($str);
     }
 
+
+    /**
+     * There are some minimum requirements to generate a PDF.
+     * For now, all we really need is a valid body (= HTML document)
+     */
     private function validateOptions($options) {
         if(empty($options['body'])) {
             throw new Exception('No body specified');
         }
     }
 
-    private function createLocationParameters($options) {
-        $bodyLocation = $this->getTmpLocation($options['body']);
-        $coverLocation = empty($options['cover']) ? null : $this->getTmpLocation($options['cover']);
-        $headerLocation = empty($options['header']) ? null : $this->getTmpLocation($options['header']);
-        $footerLocation = empty($options['footer']) ? null : $this->getTmpLocation($options['footer']);
 
-        $relativePdfLocation = $this->getRelativePdfLocation();
-        $pdfLocation =  dirname(__FILE__)  . $relativePdfLocation;
-        $pdfLocation_shell = escapeshellarg($pdfLocation);
+    /**
+     * We store the raw HTML, given in $options in some temporary html files
+     */
+    private function createTemporaryHtmlFiles($options) {
 
-        $parms = array('bodyLocation' => $bodyLocation,
-                       'coverLocation' => $coverLocation,
-                       'headerLocation' => $headerLocation,
-                       'footerLocation' => $footerLocation,
-                       'pdfLocation' => $pdfLocation,
-                       'relativePdfLocation' => $relativePdfLocation
+        $filename = $this->getTmpFilename($options['name']);
+
+        $body = $this->createTmpHtmlFile($options, 'body', $filename);
+        $cover = empty($options['cover']) ? null : $this->createTmpHtmlFile($options, 'cover', $filename);
+        $header = empty($options['header']) ? null : $this->createTmpHtmlFile($options, 'header', $filename);
+        $footer = empty($options['footer']) ? null : $this->createTmpHtmlFile($options, 'footer', $filename);
+
+        $relativepdf = $this->getRelativepdf($filename);
+        $pdf =  dirname(__FILE__)  . $relativepdf;
+        $pdf_shell = escapeshellarg($pdf);
+
+        $parms = array('body' => $body,
+                       'cover' => $cover,
+                       'header' => $header,
+                       'footer' => $footer,
+
+                       'pdf' => $pdf,
+                       'pdf_shell' => $pdf_shell,
+                       'relativepdf' => $relativepdf
             );
 
         return $parms;
     }
 
-    private function buildStatement($options) {
-        $pdfLocation_shell = escapeshellarg($options['pdfLocation']);
 
+    /**
+     * Given the $locations of our tmp html files, build the wkhtmltopdf bash statement
+     * This statement includes options for cover, headers and footers
+     */
+    private function buildStatement($locations) {
         $statement = "wkhtmltopdf ";
 
         //headers, footers and cover page
-        $statement .= empty($options['coverLocation']) ? '' : 'cover ' . $options['coverLocation'] . ' ';
-        $statement .= empty($options['headerLocation']) ? '' : "--header-html " . $options['headerLocation'] . ' ';
-        $statement .= empty($options['footerLocation']) ? '' : "--footer-html " . $options['footerLocation'] . ' ';
+        $statement .= empty($locations['cover']) ? '' : 'cover ' . $locations['cover'] . ' ';
+        $statement .= empty($locations['header']) ? '' : "--header-html " . $locations['header'] . ' ';
+        $statement .= empty($locations['footer']) ? '' : "--footer-html " . $locations['footer'] . ' ';
 
         //the actual body of the pdf
-        $statement .= ( $options['bodyLocation'] . ' ' . $pdfLocation_shell );
-
+        $statement .= ( $locations['body'] . ' ' . $locations['pdf_shell'] );
         return $statement;
     }
 
-    private function getRelativePdfLocation() {
+    private function getRelativepdf($filename) {
+
         //create a unique PDF filename and path
-        $time = microtime();
-        $pdfLocation = "/tmp/tmp_pdf-$time.pdf";
-        return $pdfLocation;
+        $pdf = "/tmp/$filename.pdf";
+        return $pdf;
+    }
+
+    private function getTmpFilename($name) {
+        $timestamp = @date('Y-m-d_H-m-s__') . $name . '__' . microtime(true);
+        return "" . $timestamp;
     }
 
 
+    /**
+     * Creates a temporary html file
+     * @param  array  $options  contains all our html strings
+     * @param  [type] $property the $options key pointing to the html string we currently want to create a tmp location for
+     * @param  [type] $filename base filename
+     */
+    private function createTmpHtmlFile(array $options, $property, $filename) { //$html, $filename
 
-    private function getTmpLocation($html) {
-        $tmpFilePath = dirname(__FILE__)  . "/tmp/";
+        $html = $options[$property];
+        $filename = $filename . '_' . $property;
+        $tmpFilePath = 'file://' . dirname(__FILE__)  . "/tmp/" . $filename . '.html';
 
-        //create a new tmp file that has the contents of $html
-        $tmpFile = tempnam($tmpFilePath,'tmp_WkHtmlToPdf_');
-        file_put_contents($tmpFile, $html);
-        rename($tmpFile, ($tmpFile.='.html'));
-
-        $tmpFilePath = escapeshellarg('file://' . $tmpFile);
+        file_put_contents($tmpFilePath, $html);
+        $tmpFilePath = escapeshellarg($tmpFilePath);
 
         return $tmpFilePath;
     }
 
+    /**
+     * Clear the TMP folder
+     */
     private function clearTmpFolder() {
-        //Clear the tmp folder
         $tmpFilePath = dirname(__FILE__)  . '/tmp/';
         $this->removeOldFiles($tmpFilePath, $this->maxTmpFileAge);
     }
 
+
+    /**
+     * http://stackoverflow.com/a/8965853/237739
+     */
     private function removeOldFiles($directory, $maxAge)
     {
-        //http://stackoverflow.com/a/8965853/237739
         $files = glob($directory."*");
         foreach($files as $file) {
             if(is_file($file)
