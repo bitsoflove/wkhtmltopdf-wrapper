@@ -7,11 +7,21 @@ class PdfLib {
     public $params;
     private $maxTmpFileAge;
 
-    public function __construct($params=null)
+    public static $ACTION_DOWNLOAD = 1;
+    public static $ACTION_RETURN_URL = 2;
+
+    public function __construct(array $params=array())
     {
-        //currently not using any params, but hey, you never know right?
         $this->params=$params;
-        $this->maxTmpFileAge = 2*24*60*60; //two days
+        $this->setMaxTmpFileAge();
+    }
+
+    private function setMaxTmpFileAge() {
+        if(isset($this->params['maxTmpFileAge']) && is_int($this->params['maxTmpFileAge'])) {
+            $this->maxTmpFileAge = $this->params['maxTmpFileAge'];
+        } else {
+            $this->maxTmpFileAge = 2*24*60*60; //two days
+        }
     }
 
 
@@ -20,12 +30,14 @@ class PdfLib {
      */
     public function generate(array $options) {
 
+
         //cleanup old files and validate options
         $this->clearTmpFolder();
         $this->validateOptions($options);
 
         //set some default variables when they are not provided
         $options['name'] = empty($options['name']) ? 'pdf' : $options['name'];
+        $options['action'] = empty($options['action']) ? PdfLib::$ACTION_DOWNLOAD : $options['action'];
 
         //initialize: create tmp files and build the bash statement
         $locations = $this->createTemporaryHtmlFiles($options);
@@ -36,9 +48,9 @@ class PdfLib {
 
         //parse output and return result, or handle error
         if($this->isValidOutput($output)) {
-            $this->returnResult($statement, $options, $locations);
+            return $this->returnResult($statement, $options, $locations);
         } else {
-            $this->handleError($output);
+            return $this->handleError($output);
         }
     }
 
@@ -62,10 +74,17 @@ class PdfLib {
      * Based on the $options, return a link to the PDF or just push the pdf
      */
     private function returnResult($statement, $options, $locations) {
-        if(!empty($options['immediateDownload'])) {
+
+
+        $action = $options['action'];
+
+        if($action == PdfLib::$ACTION_DOWNLOAD) {
             $this->pushPdfDownload($statement, $options, $locations);
+        } elseif($action == PdfLib::$ACTION_RETURN_URL) {
+            return array('absolute' => $locations['pdf'],
+                         'relative' => $locations['relativepdf']);
         } else {
-            return $locations['relativepdf'];
+            throw new Exception('No return action specified');
         }
     }
 
