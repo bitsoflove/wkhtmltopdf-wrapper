@@ -41,9 +41,12 @@ eg.:
     $('.download-pdf').click(function(e){
         e.preventDefault();
 
-        $("head link[rel='stylesheet']").last().after("<link rel='stylesheet' href='http://"+window.location.hostname+"/assets/css/pdf.css' type='text/css' media='screen'>");
+        var clonedHtml = $('html').clone();
+        var appendedHtml = clonedHtml.find("head link[rel='stylesheet']").last().after("<link rel='stylesheet' href='http://"+window.location.hostname+"/assets/css/pdf.css' type='text/css' media='screen'>");
 
-        $.post("php/savetopdf.php", {html: $('html')[0].outerHTML}, function(response){
+        var html = clonedHtml[0].outerHTML;
+
+        $.post("php/savetopdf.php", {html: html}, function(response){
 
         });
 
