@@ -39,7 +39,7 @@ class Demo {
      */
     private function getPdfOptions() {
         //using a framework, you would probably create dynamic templates
-        //this here is just a static example. in any case, we need the raw html + js to send to wkhtmltopdf
+        //this here is just a static example. in any case, we need the raw html + js to send to th epdflib
 
         $pdfOptions = array('body' => file_get_contents('templates/body.html'),
                             //'cover' => file_get_contents('templates/cover.html'),
