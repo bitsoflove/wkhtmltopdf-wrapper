@@ -34,6 +34,8 @@ class Demo {
     /**
      * Returns an array containing the raw HTML, used to generate our PDF.
      * Also some additional parameters, like action and name are provided.
+     * Lastly, we tell the lib to copy the generated pdf to our given location.
+     *     (it will respect the name property)
      */
     private function getPdfOptions() {
         //using a framework, you would probably create dynamic templates
@@ -45,7 +47,8 @@ class Demo {
                             'header' => file_get_contents('templates/header.html'),
 
                             'action' => PdfLib::$ACTION_RETURN_URL,
-                            'name' => 'demo');
+                            'name' => 'demo',
+                            'copy' => getcwd() . '/pdf');
         return $pdfOptions;
     }
 }

@@ -75,16 +75,54 @@ class PdfLib {
      */
     private function returnResult($statement, $options, $locations) {
 
+        //copy the pdf to the proper location (when provided)
+        if(!empty($options['copy'])) {
+            $options['copy_location'] = $this->copyPdf($options, $locations);
+        }
 
         $action = $options['action'];
 
         if($action == PdfLib::$ACTION_DOWNLOAD) {
             $this->pushPdfDownload($statement, $options, $locations);
         } elseif($action == PdfLib::$ACTION_RETURN_URL) {
-            return array('absolute' => $locations['pdf'],
-                         'relative' => $locations['relativepdf']);
+            return $this->returnLocation($options, $locations);
         } else {
             throw new Exception('No return action specified');
+        }
+    }
+
+    private function returnLocation($options, $locations) {
+        $res =  array('absolute' => $locations['pdf'],
+                     'relative' => $locations['relativepdf']);
+
+        if(!empty($options['copy_location'])) {
+            $res['copy'] = $options['copy_location'];
+        }
+
+        return $res;
+    }
+
+    private function copyPdf($options, $locations) {
+
+        $this->ensureTrailingSlash($options['copy']);
+
+        $tmpLocation = $locations['pdf'];
+        $newLocation = $options['copy'] . $options['name'] . '.pdf';
+
+        $success = @copy($tmpLocation, $newLocation);
+
+        if(!$success) {
+            throw new \Exception('Could not copy file. Is this folder writable?' . $options['copy']);
+        }
+
+        return $newLocation;
+    }
+
+
+    private function ensureTrailingSlash(&$path) {
+        $lastChar = substr($path, -1);
+        if($lastChar !== '/') {
+            $path .= '/';
         }
     }
 
