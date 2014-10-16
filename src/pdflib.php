@@ -92,8 +92,7 @@ class PdfLib {
     }
 
     private function returnLocation($options, $locations) {
-        $res =  array('absolute' => $locations['pdf'],
-                     'relative' => $locations['relativepdf']);
+        $res =  array('location' => $locations['pdf']);
 
         if(!empty($options['copy_location'])) {
             $res['copy'] = $options['copy_location'];
