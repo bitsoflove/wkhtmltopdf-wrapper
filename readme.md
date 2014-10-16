@@ -1,6 +1,7 @@
 
 ##Installation
-for ease of development, a wkhtmltopdf copy can be found in the root of this project.However, you should copy this one to /usr/bin (for global use).
+for ease of development, a wkhtmltopdf copy can be found in the root of this project. However, you should copy this one to /usr/bin (for global use).
+<sub>Note: this is the Mac OSX 32bit 12.1 binary</sub>
 
 Wkhtmltopdf should also be installed on the server (into /usr/bin), but the binary will be different: get the latest one from the [official site](http://wkhtmltopdf.org/).
 
